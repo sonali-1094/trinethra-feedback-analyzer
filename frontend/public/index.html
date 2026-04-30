@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trinethra — Fellow Feedback Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f0f11;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --border-light: #3a3a48;
+      --text: #e8e8f0;
+      --text-muted: #7a7a96;
+      --text-dim: #4a4a60;
+      --accent: #6b8cff;
+      --accent-dim: #6b8cff22;
+      --positive: #4ecb71;
+      --positive-dim: #4ecb7122;
+      --negative: #ff6b6b;
+      --negative-dim: #ff6b6b22;
+      --neutral: #f0c060;
+      --neutral-dim: #f0c06022;
+      --score-low: #ff6b6b;
+      --score-mid: #f0c060;
+      --score-high: #4ecb71;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      flex-shrink: 0;
+    }
+    .logo-text { font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.05em; }
+    .logo-sub { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+
+    #status-dot {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+    }
+    .dot.ok { background: var(--positive); box-shadow: 0 0 6px var(--positive); }
+    .dot.err { background: var(--negative); }
+
+    main {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 0;
+      flex: 1;
+    }
+
+    /* ── Left Panel (Input) ── */
+    .input-panel {
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 20px;
+      height: calc(100vh - 56px);
+      position: sticky; top: 56px;
+      overflow-y: auto;
+    }
+
+    .panel-label {
+      font-family: var(--mono); font-size: 10px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .sample-pills {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+
+    .pill {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--surface);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .pill:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .pill-name { font-weight: 500; font-size: 13px; }
+    .pill-meta { font-size: 11px; color: var(--text-muted); }
+    .pill-trap {
+      font-size: 10px; color: var(--neutral);
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+
+    .meta-fields { display: flex; flex-direction: column; gap: 8px; }
+    .field-row { display: flex; flex-direction: column; gap: 4px; }
+    .field-row input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .field-row input:focus { outline: none; border-color: var(--accent); }
+    .field-row input::placeholder { color: var(--text-dim); }
+
+    #transcript-input {
+      width: 100%;
+      flex: 1;
+      min-height: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      line-height: 1.7;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    #transcript-input:focus { outline: none; border-color: var(--accent); }
+    #transcript-input::placeholder { color: var(--text-dim); }
+
+    .char-count {
+      font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+      text-align: right;
+    }
+
+    #run-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    #run-btn:hover:not(:disabled) { opacity: 0.9; }
+    #run-btn:active:not(:disabled) { transform: scale(0.98); }
+    #run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Right Panel (Output) ── */
+    .output-panel {
+      padding: 24px 32px;
+      overflow-y: auto;
+      height: calc(100vh - 56px);
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 60%;
+      color: var(--text-dim);
+      text-align: center; gap: 12px;
+    }
+    .empty-icon { font-size: 40px; opacity: 0.3; }
+    .empty-state p { font-size: 13px; max-width: 300px; }
+
+    .loading-state {
+      display: none; flex-direction: column; align-items: center;
+      justify-content: center; height: 60%; gap: 20px;
+    }
+    .loading-state.active { display: flex; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-msg { font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+
+    /* ── Analysis Output ── */
+    .analysis { display: none; flex-direction: column; gap: 28px; }
+    .analysis.active { display: flex; }
+
+    .analysis-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .score-block {
+      display: flex; align-items: center; gap: 16px;
+    }
+
+    .score-circle {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 2px solid currentColor;
+      flex-shrink: 0;
+    }
+    .score-num { font-family: var(--mono); font-size: 28px; font-weight: 500; line-height: 1; }
+    .score-denom { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+
+    .score-info { display: flex; flex-direction: column; gap: 2px; }
+    .score-label { font-size: 18px; font-weight: 600; }
+    .score-band { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+    .score-confidence {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: var(--mono); font-size: 10px;
+      padding: 2px 8px; border-radius: 3px;
+      border: 1px solid var(--border);
+      margin-top: 4px; width: fit-content;
+      color: var(--text-muted);
+    }
+
+    .meta-badge {
+      font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+      text-align: right; line-height: 1.8;
+    }
+
+    /* Sections */
+    .section { display: flex; flex-direction: column; gap: 12px; }
+    .section-title {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      width: 18px; height: 18px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: var(--text-dim);
+    }
+
+    /* Justification */
+    .justification-box {
+      padding: 14px 16px;
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      font-size: 13px; line-height: 1.7;
+    }
+
+    /* Bias tags */
+    .bias-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .bias-tag {
+      font-family: var(--mono); font-size: 10px;
+      padding: 3px 8px; border-radius: 3px;
+      background: var(--negative-dim);
+      border: 1px solid var(--negative);
+      color: var(--negative);
+    }
+
+    /* Evidence cards */
+    .evidence-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .evidence-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .evidence-card:hover { border-color: var(--border-light); }
+
+    .evidence-card.positive { border-left: 3px solid var(--positive); }
+    .evidence-card.negative { border-left: 3px solid var(--negative); }
+    .evidence-card.neutral { border-left: 3px solid var(--neutral); }
+
+    .evidence-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface);
+      cursor: pointer;
+      user-select: none;
+    }
+    .signal-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .evidence-quote {
+      font-style: italic; font-size: 13px;
+      flex: 1;
+      color: var(--text);
+    }
+    .dim-badge {
+      font-family: var(--mono); font-size: 10px;
+      padding: 2px 6px; border-radius: 3px;
+      border: 1px solid var(--border); color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .layer-badge {
+      font-family: var(--mono); font-size: 10px;
+      padding: 2px 6px; border-radius: 3px;
+      white-space: nowrap;
+    }
+    .layer-badge.layer1 { background: var(--neutral-dim); color: var(--neutral); border: 1px solid var(--neutral); }
+    .layer-badge.layer2 { background: var(--positive-dim); color: var(--positive); border: 1px solid var(--positive); }
+
+    .evidence-body {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 13px; color: var(--text-muted);
+      display: none;
+    }
+    .evidence-body.open { display: block; }
+    .chevron { color: var(--text-dim); font-size: 10px; transition: transform 0.15s; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* KPI grid */
+    .kpi-grid { display: flex; flex-direction: column; gap: 8px; }
+    .kpi-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .kpi-name { font-weight: 500; font-size: 13px; min-width: 110px; }
+    .kpi-evidence { font-size: 12px; color: var(--text-muted); flex: 1; }
+    .kpi-type {
+      font-family: var(--mono); font-size: 10px;
+      padding: 2px 6px; border-radius: 3px;
+      white-space: nowrap;
+    }
+    .kpi-type.system { background: var(--positive-dim); color: var(--positive); border: 1px solid var(--positive); }
+    .kpi-type.personal { background: var(--negative-dim); color: var(--negative); border: 1px solid var(--negative); }
+
+    /* Gaps */
+    .gap-list { display: flex; flex-direction: column; gap: 8px; }
+    .gap-card {
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--negative);
+      border-radius: 0 6px 6px 0;
+    }
+    .gap-dim { font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+    .gap-detail { font-size: 12px; color: var(--text-muted); }
+
+    /* Follow-up questions */
+    .question-list { display: flex; flex-direction: column; gap: 10px; }
+    .question-card {
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .question-text {
+      font-size: 14px; font-weight: 500; margin-bottom: 8px;
+    }
+    .question-meta { font-size: 11px; color: var(--text-muted); }
+    .question-looking {
+      margin-top: 6px; padding: 8px 10px;
+      background: var(--bg); border-radius: 4px;
+      font-size: 12px; color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* Bias summary */
+    .bias-summary-box {
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--negative);
+      border-radius: 6px;
+      font-size: 13px; line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    /* Edit controls */
+    .score-editor {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    .score-editor label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+    #score-override {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); padding: 4px 8px; border-radius: 4px;
+      font-family: var(--mono); font-size: 13px; width: 60px;
+    }
+    .override-note {
+      font-size: 11px; color: var(--neutral);
+      font-family: var(--mono); margin-left: auto;
+    }
+
+    /* Error */
+    .error-box {
+      padding: 16px; background: var(--negative-dim);
+      border: 1px solid var(--negative);
+      border-radius: 6px; color: var(--negative);
+      font-size: 13px; display: none;
+    }
+    .error-box.active { display: block; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <div>
+        <div class="logo-text">TRINETHRA</div>
+        <div class="logo-sub">Fellow Feedback Analyzer · DeepThought</div>
+      </div>
+    </div>
+    <div id="status-dot">
+      <div class="dot" id="ollama-dot"></div>
+      <span id="ollama-label">checking ollama...</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ── Input Panel ── -->
+    <div class="input-panel">
+
+      <div>
+        <div class="panel-label">Load Sample Transcript</div>
+        <div class="sample-pills" id="sample-list"></div>
+      </div>
+
+      <div>
+        <div class="panel-label">Fellow Info (optional)</div>
+        <div class="meta-fields">
+          <div class="field-row">
+            <input type="text" id="fellow-name" placeholder="Fellow name" />
+          </div>
+          <div class="field-row">
+            <input type="text" id="fellow-tenure" placeholder="Tenure (e.g. 4 months)" />
+          </div>
+          <div class="field-row">
+            <input type="text" id="fellow-placement" placeholder="Placement goal" />
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+        <div class="panel-label">Supervisor Transcript</div>
+        <textarea
+          id="transcript-input"
+          placeholder="Paste the supervisor's transcript here — exactly as transcribed from the call. Do not summarize or edit."
+        ></textarea>
+        <div class="char-count" id="char-count">0 characters</div>
+      </div>
+
+      <div id="error-box" class="error-box"></div>
+
+      <button id="run-btn" onclick="runAnalysis()">▶ Run Analysis</button>
+    </div>
+
+    <!-- ── Output Panel ── -->
+    <div class="output-panel">
+
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">◎</div>
+        <p>Paste a transcript and click <strong>Run Analysis</strong> to generate a structured assessment draft.</p>
+        <p style="font-size:11px; margin-top:8px;">The AI suggests — you decide.</p>
+      </div>
+
+      <div class="loading-state" id="loading-state">
+        <div class="spinner"></div>
+        <div class="loading-msg" id="loading-msg">Sending to Ollama...</div>
+      </div>
+
+      <div class="analysis" id="analysis-output">
+
+        <!-- Score -->
+        <div class="analysis-header">
+          <div class="score-block">
+            <div class="score-circle" id="score-circle">
+              <div class="score-num" id="score-num">—</div>
+              <div class="score-denom">/10</div>
+            </div>
+            <div class="score-info">
+              <div class="score-label" id="score-label">—</div>
+              <div class="score-band" id="score-band">—</div>
+              <div class="score-confidence" id="score-confidence">— confidence</div>
+            </div>
+          </div>
+          <div class="meta-badge" id="meta-badge"></div>
+        </div>
+
+        <!-- Score override -->
+        <div class="score-editor">
+          <label>INTERN OVERRIDE:</label>
+          <input type="number" id="score-override" min="1" max="10" placeholder="1–10" />
+          <div class="override-note" id="override-note" style="display:none">⚠ Score overridden by intern</div>
+        </div>
+
+        <!-- Justification -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">1</div> Score Justification</div>
+          <div class="justification-box" id="justification"></div>
+          <div class="bias-tags" id="bias-tags"></div>
+        </div>
+
+        <!-- Evidence -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">2</div> Extracted Evidence</div>
+          <div class="evidence-list" id="evidence-list"></div>
+        </div>
+
+        <!-- KPI Mapping -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">3</div> KPI Mapping</div>
+          <div class="kpi-grid" id="kpi-grid"></div>
+        </div>
+
+        <!-- Gaps -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">4</div> Assessment Gaps</div>
+          <div class="gap-list" id="gap-list"></div>
+        </div>
+
+        <!-- Follow-up -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">5</div> Suggested Follow-up Questions</div>
+          <div class="question-list" id="question-list"></div>
+        </div>
+
+        <!-- Bias summary -->
+        <div class="section">
+          <div class="section-title"><div class="section-num">6</div> Supervisor Bias Assessment</div>
+          <div class="bias-summary-box" id="bias-summary"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:3001';
+let currentAnalysis = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await checkOllama();
+  await loadSamples();
+  document.getElementById('transcript-input').addEventListener('input', updateCharCount);
+  document.getElementById('score-override').addEventListener('input', handleScoreOverride);
+}
+
+async function checkOllama() {
+  const dot = document.getElementById('ollama-dot');
+  const label = document.getElementById('ollama-label');
+  try {
+    const r = await fetch(`${API}/api/health`);
+    const d = await r.json();
+    if (d.ollama === 'connected') {
+      dot.className = 'dot ok';
+      label.textContent = `Ollama · ${d.activeModel}`;
+    } else {
+      dot.className = 'dot err';
+      label.textContent = 'Ollama unreachable';
+    }
+  } catch {
+    dot.className = 'dot err';
+    label.textContent = 'Backend offline';
+  }
+}
+
+async function loadSamples() {
+  const container = document.getElementById('sample-list');
+  try {
+    const r = await fetch(`${API}/api/samples`);
+    const d = await r.json();
+    const traps = [
+      'Trap: supervisor warm, mostly Layer 1. Lazy tool → 8. Good tool → 6.',
+      'Trap: supervisor critical, real systems built. Lazy tool → 4. Good tool → 7.',
+      'Trap: supervisor glowing, Fellow absorbed all tasks. Lazy tool → 9. Good tool → 5-6.'
+    ];
+    d.transcripts.forEach((t, i) => {
+      const pill = document.createElement('div');
+      pill.className = 'pill';
+      pill.innerHTML = `
+        <div>
+          <div class="pill-name">${t.fellow.name}</div>
+          <div class="pill-meta">${t.company.name} · ${t.fellow.tenure}</div>
+          <div class="pill-trap">${traps[i]}</div>
+        </div>`;
+      pill.onclick = () => loadSample(t);
+      container.appendChild(pill);
+    });
+  } catch (e) {
+    container.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Could not load samples.</div>';
+  }
+}
+
+function loadSample(t) {
+  document.getElementById('fellow-name').value = t.fellow.name;
+  document.getElementById('fellow-tenure').value = t.fellow.tenure;
+  document.getElementById('fellow-placement').value = t.fellow.placement;
+  document.getElementById('transcript-input').value = t.transcript;
+  updateCharCount();
+}
+
+function updateCharCount() {
+  const len = document.getElementById('transcript-input').value.length;
+  document.getElementById('char-count').textContent = `${len.toLocaleString()} characters`;
+}
+
+// ── Analysis ──────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const transcript = document.getElementById('transcript-input').value.trim();
+  if (transcript.length < 50) {
+    showError('Please paste a transcript (at least 50 characters).');
+    return;
+  }
+
+  showError('');
+  setState('loading');
+  const msgs = ['Sending to Ollama...', 'Extracting evidence...', 'Mapping KPIs...', 'Identifying gaps...', 'Almost done...'];
+  let mi = 0;
+  const ticker = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    document.getElementById('loading-msg').textContent = msgs[mi];
+  }, 3000);
+
+  const fellowMeta = {
+    name: document.getElementById('fellow-name').value,
+    tenure: document.getElementById('fellow-tenure').value,
+    placement: document.getElementById('fellow-placement').value
+  };
+
+  try {
+    const r = await fetch(`${API}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript, fellowMeta })
+    });
+    clearInterval(ticker);
+
+    const d = await r.json();
+    if (!r.ok || !d.success) {
+      showError(d.error || 'Analysis failed. Is Ollama running?');
+      setState('empty');
+      return;
+    }
+
+    currentAnalysis = d.analysis;
+    renderAnalysis(d.analysis);
+    setState('result');
+  } catch (e) {
+    clearInterval(ticker);
+    showError(`Network error: ${e.message}. Make sure the backend is running (npm start in /backend).`);
+    setState('empty');
+  }
+}
+
+function renderAnalysis(a) {
+  renderScore(a.score);
+  document.getElementById('justification').textContent = a.score.justification;
+  renderBiasTags(a.score.biasesDetected || []);
+  renderEvidence(a.evidence || []);
+  renderKPIs(a.kpiMapping || []);
+  renderGaps(a.gaps || []);
+  renderQuestions(a.followUpQuestions || []);
+  document.getElementById('bias-summary').textContent = a.supervisorBiasSummary || 'No bias summary provided.';
+  document.getElementById('meta-badge').innerHTML =
+    `Model: ${a._meta?.model || '—'}<br>Attempt: ${a._meta?.attempt || 1}<br>${new Date(a._meta?.timestamp).toLocaleTimeString()}`;
+
+  // Reset override
+  document.getElementById('score-override').value = '';
+  document.getElementById('override-note').style.display = 'none';
+}
+
+function renderScore(score) {
+  const val = score.value;
+  const color = val <= 3 ? 'var(--score-low)' : val <= 6 ? 'var(--score-mid)' : 'var(--score-high)';
+  const circle = document.getElementById('score-circle');
+  circle.style.color = color;
+  document.getElementById('score-num').textContent = val;
+  document.getElementById('score-num').style.color = color;
+  document.getElementById('score-label').textContent = score.label || '—';
+  document.getElementById('score-band').textContent = score.band || '—';
+  const conf = document.getElementById('score-confidence');
+  conf.textContent = `${score.confidence || 'medium'} confidence`;
+  conf.style.borderColor = score.confidence === 'high' ? 'var(--positive)' : score.confidence === 'low' ? 'var(--negative)' : 'var(--border)';
+}
+
+function renderBiasTags(biases) {
+  const container = document.getElementById('bias-tags');
+  container.innerHTML = '';
+  if (!biases.length) return;
+  biases.forEach(b => {
+    const tag = document.createElement('div');
+    tag.className = 'bias-tag';
+    tag.textContent = b.replace(/_/g, ' ');
+    container.appendChild(tag);
+  });
+}
+
+function renderEvidence(evidence) {
+  const list = document.getElementById('evidence-list');
+  list.innerHTML = '';
+  evidence.forEach((ev, i) => {
+    const card = document.createElement('div');
+    card.className = `evidence-card ${ev.signal}`;
+    const sigColor = ev.signal === 'positive' ? 'var(--positive)' : ev.signal === 'negative' ? 'var(--negative)' : 'var(--neutral)';
+    const layerClass = ev.layer === 'layer2' ? 'layer2' : 'layer1';
+    const layerLabel = ev.layer === 'layer2' ? 'Layer 2 · Systems' : 'Layer 1 · Execution';
+    card.innerHTML = `
+      <div class="evidence-header" onclick="toggleEvidence(this)">
+        <div class="signal-dot" style="background:${sigColor}"></div>
+        <div class="evidence-quote">"${ev.quote}"</div>
+        <div class="dim-badge">${(ev.dimension || '').replace(/_/g, ' ')}</div>
+        <div class="layer-badge ${layerClass}">${layerLabel}</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="evidence-body">${ev.interpretation || ''}</div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleEvidence(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+function renderKPIs(kpis) {
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  if (!kpis.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No KPI connections identified in transcript.</div>';
+    return;
+  }
+  kpis.forEach(k => {
+    const row = document.createElement('div');
+    row.className = 'kpi-row';
+    const typeClass = k.systemOrPersonal === 'system' ? 'system' : 'personal';
+    const typeLabel = k.systemOrPersonal === 'system' ? '✓ System' : '⚠ Personal';
+    row.innerHTML = `
+      <div class="kpi-name">${k.kpi}</div>
+      <div class="kpi-evidence">${k.evidence}</div>
+      <div class="kpi-type ${typeClass}">${typeLabel}</div>`;
+    grid.appendChild(row);
+  });
+}
+
+function renderGaps(gaps) {
+  const list = document.getElementById('gap-list');
+  list.innerHTML = '';
+  if (!gaps.length) {
+    list.innerHTML = '<div style="color:var(--positive);font-size:12px;">✓ All assessment dimensions covered in this transcript.</div>';
+    return;
+  }
+  gaps.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'gap-card';
+    card.innerHTML = `
+      <div class="gap-dim">${g.dimensionLabel || (g.dimension || '').replace(/_/g, ' ')}</div>
+      <div class="gap-detail">${g.detail}</div>`;
+    list.appendChild(card);
+  });
+}
+
+function renderQuestions(questions) {
+  const list = document.getElementById('question-list');
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.innerHTML = `
+      <div class="question-text">Q${i+1}. ${q.question}</div>
+      <div class="question-meta">Targets: <strong>${(q.targetGap || '').replace(/_/g, ' ')}</strong></div>
+      <div class="question-looking">Looking for: ${q.lookingFor}</div>`;
+    list.appendChild(card);
+  });
+}
+
+function handleScoreOverride(e) {
+  const val = parseInt(e.target.value);
+  if (val >= 1 && val <= 10) {
+    document.getElementById('override-note').style.display = 'block';
+    // Update visual circle without re-running analysis
+    const color = val <= 3 ? 'var(--score-low)' : val <= 6 ? 'var(--score-mid)' : 'var(--score-high)';
+    document.getElementById('score-num').textContent = val;
+    document.getElementById('score-num').style.color = color;
+    document.getElementById('score-circle').style.color = color;
+  } else {
+    document.getElementById('override-note').style.display = 'none';
+  }
+}
+
+// ── UI State ─────────────────────────────────────────────────────────────────
+function setState(state) {
+  document.getElementById('empty-state').style.display = state === 'empty' ? 'flex' : 'none';
+  document.getElementById('loading-state').className = 'loading-state' + (state === 'loading' ? ' active' : '');
+  document.getElementById('analysis-output').className = 'analysis' + (state === 'result' ? ' active' : '');
+  document.getElementById('run-btn').disabled = state === 'loading';
+  document.getElementById('run-btn').textContent = state === 'loading' ? '◎ Analyzing...' : '▶ Run Analysis';
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.className = 'error-box' + (msg ? ' active' : '');
+}
+
+init();
+</script>
+</body>
+</html>
